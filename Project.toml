@@ -3,8 +3,17 @@ uuid = "32629f54-102d-4dab-a32d-ea6cf4ff2719"
 authors = ["jumerckx <julesmerckx12@gmail.com> and contributors"]
 version = "1.0.0-DEV"
 
+[deps]
+CassetteOverlay = "d78b62d4-37fa-4a6f-acd8-2f19986eb9ee"
+CodeInfoTools = "bc773b8a-8374-437a-b9f2-0e9785855863"
+MLIR = "bfde9dd4-8f40-4a1e-be09-1475335e1c92"
+MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
+
 [compat]
-julia = "1.10"
+CassetteOverlay = "0.1.8"
+CodeInfoTools = "0.3.5"
+MacroTools = "0.5.13"
+julia = "1.11"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
