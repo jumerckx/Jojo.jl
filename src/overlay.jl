@@ -42,8 +42,6 @@ function mlirfunction_(expr)
     # since the methodtable shouldn't be escaped, we create an alias that escapes and binds to the real deal.
     methodtable = gensym(:MLIRCompilation)
 
-    # hacky: in the MLIRCompilation context, we get rid of the return type as this could be something else than what should be in the Julia IR.
-    # delete!(dict, :rtype)
     expr = Base.Experimental.overlay_def!(methodtable, combinedef(dict))
 
     return quote

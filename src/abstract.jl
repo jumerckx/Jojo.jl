@@ -1,3 +1,13 @@
+abstract type BoolTrait end
+struct NonBoollike <: BoolTrait end
+struct Boollike <: BoolTrait end
+BoolTrait(T) = NonBoollike()
+
+mlir_bool_conversion(x::Bool) = x
+@inline mlir_bool_conversion(x::T) where T = mlir_bool_conversion(BoolTrait(T), x)
+@noinline mlir_bool_conversion(::Boollike, x)::Bool = new_intrinsic()
+mlir_bool_conversion(::NonBoollike, x::T) where T = error("Type $T is not marked as Boollike.")
+
 using Core: MethodInstance, CodeInstance, OpaqueClosure
 const CC = Core.Compiler
 using CodeInfoTools
@@ -134,12 +144,6 @@ end
 MethodError(ft, tt, world=typemax(UInt)) = Base.MethodError(ft, tt, world)
 
 const global_ci_cache = CodeCache()
-
-mlir_bool_conversion(x::Bool) = x
-function mlir_bool_conversion(x::T) where T
-    error("Cannot convert type $T")
-end
-mlir_bool_conversion(x::Int) = x != 0
 
 import Core.Compiler: retrieve_code_info, maybe_validate_code, InferenceState, InferenceResult
 # Replace usage sites of `retrieve_code_info`, OptimizationState is one such, but in all interesting use-cases

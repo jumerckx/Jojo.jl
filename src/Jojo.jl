@@ -229,7 +229,8 @@ function code_mlir(f, types; do_simplify=true, emit_region=false, ignore_returns
 
                     # special case mlir_bool_conversion to just forward the argument
                     if called_func == mlir_bool_conversion
-                        out = only(argvalues)
+                        @assert length(argvalues) == 2
+                        out = argvalues[end]
                     else
                         out = mlircompilationpass() do
                             called_func(argvalues...)
