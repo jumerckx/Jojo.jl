@@ -4,7 +4,7 @@ TestEnv.activate()
 using MLIR
 includet("utils.jl")
 using Jojo
-import Jojo: MemRef, @mlirfunction, @code_mlir
+import Jojo: MemRef, @mlirfunction
 using Jojo.Types
 using BenchmarkTools, MLIR, MacroTools
 
@@ -32,22 +32,18 @@ end
     new_index = arith.subi(i, oneoff) |> IR.get_result
     T(Dialects.memref.load(A, [new_index]) |> IR.get_result)
 end
+@noinline Jojo.mlir_bool_conversion(a::i1)::Bool = Jojo.new_intrinsic()
 
 square(a) = a*a
 f(a, b) = (a>b) ? a+b : square(a)
 g(a::AbstractVector) = a[2]
 h(a, i) = a[i]
 
-Base.code_ircode(f, (i64, i64))
+Base.code_ircode(f, (i64, i64), Jojo.MLIRInterpreter())
 @time m = Jojo.code_mlir(f, Tuple{i64, i64}, do_simplify=true)
 lowerModuleToLLVM(m)
 
-@noinline Jojo.mlir_bool_conversion(a::i1)::Bool = Jojo.new_intrinsic()
+Jojo.code_mlir(Tuple{Complex{i64}, Complex{i64}}) do a, b
+    a + b
+end |> lowerModuleToLLVM
 
-Base.code_ircode((i64, i64), interp=Jojo.MLIRInterpreter()) do a, b
-    if a > b
-        a + b
-    else
-        a * b
-    end
-end

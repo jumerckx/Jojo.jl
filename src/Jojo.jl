@@ -23,41 +23,9 @@ struct InstructionContext{I}
     loc::Location
 end
 
-function cmpi_pred(predicate)
-    function(lhs, rhs; loc=Location())
-        arith.cmpi(lhs, rhs; predicate, location=loc)
-    end
-end
-
-function single_op_wrapper(fop)
-    (cg::CodegenContext, ic::InstructionContext)->IR.get_result(push!(currentblock(cg), fop(indextoi64.(Ref(cg), get_value.(Ref(cg), ic.args))...)))
-end
-
-indextoi64(cg::CodegenContext, x; loc=IR.Location()) = x
-function indextoi64(cg::CodegenContext, x::Value; loc=IR.Location())
-    mlirtype = IR.get_type(x)
-    if API.mlirTypeIsAIndex(mlirtype)
-        return push!(currentblock(cg), arith.index_cast(
-            x;
-            out=MLIRType(Int), location=loc)
-            ) |> IR.get_result
-    else
-        return x
-    end
-end
-function i64toindex(cg, x::Value; loc=IR.Location())
-    mlirtype = IR.get_type(x)
-    if API.mlirTypeIsAInteger(mlirtype)
-        return push!(currentblock(cg), arith.index_cast(
-            x;
-            out=IR.IndexType(), location=loc
-        )) |> IR.get_result
-    else
-        return x
-    end
-end
-
-# all these emit functions are remnants of a previous version and might be not useful anymore:
+# most built-in functions should probably be implemented here.
+# This should ideally also be user-configurable to allow for
+# e.g. mapping `ifelse`` on a different dialect
 function emit(cg::CodegenContext, ic::InstructionContext{Base.getfield})
     object = get_value(cg, first(ic.args))
     field = ic.args[2]
@@ -155,7 +123,7 @@ This only supports a few Julia Core primitives and scalar types of type $JojoTyp
 """
 function code_mlir(f, types; do_simplify=true, emit_region=false, ignore_returns=emit_region)
     ctx = context()
-    ir, ret = Core.Compiler.code_ircode(f, types) |> only
+    ir, ret = Core.Compiler.code_ircode(f, types, interp=MLIRInterpreter()) |> only
     @assert first(ir.argtypes) isa Core.Const
 
     values = Vector(undef, length(ir.stmts))
@@ -208,7 +176,7 @@ function code_mlir(f, types; do_simplify=true, emit_region=false, ignore_returns
                     line = cg.ir.linetable[stmt[:line]]
                 end
 
-                if Meta.isexpr(inst, :call)
+                if Meta.isexpr(inst, :call) # built-in functions
                     val_type = stmt[:type]
                     called_func, args... = inst.args
 
@@ -230,8 +198,6 @@ function code_mlir(f, types; do_simplify=true, emit_region=false, ignore_returns
 
                     loc = Location(string(line.file), line.line, 0)
                     ic = InstructionContext{called_func}(args, val_type, loc)
-                    # return cg, ic
-                    @show typeof(ic)
                     cg, res = emit(cg, ic)
 
                     values[sidx] = res
@@ -260,15 +226,16 @@ function code_mlir(f, types; do_simplify=true, emit_region=false, ignore_returns
                     ic = InstructionContext{called_func}(args, val_type, loc)
 
                     argvalues = get_value.(Ref(cg), ic.args)
-                    @show called_func, argvalues
-                    
-                    out = mlircompilationpass() do
-                        called_func(argvalues...)
+
+                    # special case mlir_bool_conversion to just forward the argument
+                    if called_func == mlir_bool_conversion
+                        out = only(argvalues)
+                    else
+                        out = mlircompilationpass() do
+                            called_func(argvalues...)
+                        end
                     end
-
                     values[sidx] = out
-
-
                 elseif inst isa PhiNode
                     values[sidx] = IR.get_argument(currentblock(cg), n_phi_nodes += 1)
                 elseif inst isa PiNode
@@ -288,8 +255,6 @@ function code_mlir(f, types; do_simplify=true, emit_region=false, ignore_returns
                     falseDest = cg.blocks[inst.dest]
 
                     location = Location(string(line.file), line.line, 0)
-                    # @show cond
-                    # if inst.cond.id == 54; return 1; end
                     cond_br = cf.cond_br(cond, true_args, false_args; trueDest, falseDest, location)
                     push!(currentblock(cg), cond_br)
                 elseif inst isa ReturnNode
