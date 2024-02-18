@@ -1,7 +1,7 @@
-# Jojo
+# Jojo.jl
 > Generate MLIR from Julia code.
 
-[![Build Status](https://github.com/jumerckx/Jojo.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/jumerckx/Jojo.jl/actions/workflows/CI.yml?query=branch%3Amain)
+## Overview
 
 `script.jl` contains an example of generating MLIR for some simple Julia functions. Here's a quick overview of the main features:
 
